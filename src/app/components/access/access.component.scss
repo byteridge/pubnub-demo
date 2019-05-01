@@ -1,0 +1,15 @@
+.check-boxes{
+    position: relative;
+    bottom: 16px;
+    float: left;
+}
+
+.check-boxes input{
+    position: relative;
+    bottom: 2px;
+    margin: 0 5px;
+}
+.check-boxes label{
+    margin-right:10px;
+    cursor: pointer;
+}

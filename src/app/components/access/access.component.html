@@ -1,0 +1,35 @@
+
+<div class="container">
+    <div class="row">
+      <div class="col-sm">
+      </div>
+      <div class="col-sm">
+          <div class="input-group mb-4">
+              <input class="form-control" placeholder="Enter user name" type="text" id="msg" [(ngModel)]="name" >
+              <div class="input-group-append">
+                <button class="btn btn-outline-primary" (click)="grant()">Grant</button>
+              </div>
+            </div>
+            <div class="check-boxes">
+                <label >
+                    <input type="checkbox" [(ngModel)]="read" placeholder="Enter Name"/>
+                    Read
+                  </label>
+                  <label >
+                    <input type="checkbox" [(ngModel)]="write"/>
+                    Write
+                  </label>
+            </div>     
+      </div>
+      <div class="col-sm">
+      </div>
+    </div>
+  </div>
+
+  <div style="width: 90%;margin:auto;">
+    <div class="row">
+        <div class="card col-sm-3" *ngFor="let item of granted" style="width: 18rem; min-height: 300px;">
+                <app-user  [payload]="item"></app-user>
+        </div>
+    </div>
+  </div>

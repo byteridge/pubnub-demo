@@ -1,0 +1,22 @@
+<div class="chat-box">
+  <h3>{{payload.name}} 
+    
+      <span class="badge badge-secondary" 
+      [ngClass]="{'badge-secondary' : !payload.read, 'badge-success' : payload.read}">Read</span>
+      <span class="badge badge-secondary" 
+      [ngClass]="{'badge-secondary' : !payload.write, 'badge-success' : payload.write}">Write</span>
+  </h3>
+  <div>
+      <ul class="list-group">
+          <li class="list-group-item history" *ngFor="let msg of history">
+              <span class="badge badge-primary badge-pill">{{msg.message.user}}</span>
+            {{msg.message.message}}</li>
+        </ul>
+  </div>
+  <div class="input-group mb-4">
+      <input class="form-control" placeholder="type your message" type="text" id="msg" [(ngModel)]="message" >
+      <div class="input-group-append">
+        <button class="btn btn-outline-primary" (click)="publish()">Publish</button>
+      </div>
+    </div>
+</div>
