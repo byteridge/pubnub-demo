@@ -1,3 +1,22 @@
-<p>
-  demo works!
-</p>
+<div style="width: 90%;margin:auto;">
+  <div class="row">
+      <div class="card col-sm-3" *ngFor="let user of users; let i = index" style="width: 18rem; min-height: 300px;">
+              <div *ngIf="user.name !== name" >
+                <p>
+                  {{user.name}}
+                  <button class="btn btn-primary" *ngIf="!user.subscribed" (click)="startChat(i)">Start chat</button>
+                </p>
+                
+              </div>
+              <div  *ngIf="user.subscribed">
+                <input  [(ngModel)]="user.input"/> <button class="btn btn-primary"  (click)="send(i)">Send</button>
+
+                <ul class="list-group" style="text-align: left; max-height: 200px; overflow-y: auto;">
+                  <li class="list-group-item history" *ngFor="let msg of user.response">
+                      <span class="badge badge-primary badge-pill">{{msg.entry.user}}</span>
+                    {{msg.entry.message}}</li>
+                </ul>
+              </div>
+      </div>
+  </div>
+</div>

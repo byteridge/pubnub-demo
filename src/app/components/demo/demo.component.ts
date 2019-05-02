@@ -11,7 +11,7 @@ export class DemoComponent implements OnInit {
 
   init: any;
   name: string;
-  playerList: string[] = [];
+  users: any[] = [];
   channelGroup: string = 'users-list';
 
   constructor(private route: ActivatedRoute) { }
@@ -28,28 +28,27 @@ export class DemoComponent implements OnInit {
 
   grant(){
     this.init.grant(
-      {
-          channels: [this.channelGroup],
-          read: true, // false to disallow
-          write: true, // false to disallow
-      },
-       (status) => {
-          // handle status
-          console.log('grant ', status);
-          this.addChanneltoGroup((status, response) => {
-            console.log('add status ', status);
-            this.subscribe();
-            this.addListners();
-          });
-      }
-  );
-  
+        {
+            channels: [this.channelGroup],
+            read: true, // false to disallow
+            write: true, // false to disallow
+        },
+        (status) => {
+            // handle status
+            console.log('grant ', status);
+            // this.addChanneltoGroup((status, response) => {
+              console.log('add status ', status);
+              this.subscribe();
+              this.addListners();
+            // });
+        }
+    );
   }
 
-  addChanneltoGroup(callback){
+  addChanneltoGroup(name, callback){
     this.init.channelGroups.addChannels(
       {
-          channels: [this.name],
+          channels: [name],
           channelGroup: this.channelGroup
       }, callback);
   }
@@ -57,8 +56,7 @@ export class DemoComponent implements OnInit {
   subscribe(){
     const payload = {
       channelGroups: [this.channelGroup, `${this.channelGroup}-pnpres`],
-      channels: [this.name],
-      withPresence: true,
+      withPresence: true
     };
     this.init.subscribe(payload);
   }
@@ -69,14 +67,14 @@ export class DemoComponent implements OnInit {
 
   getName(){
     this.name = this.route.snapshot.queryParams['name'];
-    console.log(this.name);
   }
 
   initialize(){
     const payload = {
       publishKey: 'pub-c-2c71b4eb-57bb-4653-8a5a-02dccc1233c2',
       subscribeKey: 'sub-c-b184bbc2-5c1d-11e9-a6e0-8a4660381032',
-      secretKey: 'sec-c-MzlhYzY3NjgtOGVkOS00ZGYwLWIwN2ItYjk1OWE3ZDAxOTE5'
+      secretKey: 'sec-c-MzlhYzY3NjgtOGVkOS00ZGYwLWIwN2ItYjk1OWE3ZDAxOTE5',
+      uuid: this.name
     }
     this.init = new pubnub(payload);
   }
@@ -108,7 +106,7 @@ export class DemoComponent implements OnInit {
             }
           }
         }
-        console.log("Presence UUIDs:", this.playerList);
+        console.log("Presence UUIDs:", this.users);
       }
     });
   }
@@ -134,27 +132,30 @@ export class DemoComponent implements OnInit {
   join(response){
       for(let i=0; i < response.occupancy; i++){
         if(response.uuid !== undefined){
-          var uuidMatchJoin = this.playerList.indexOf(response.uuid);
+          var uuidMatchJoin = this.users.indexOf(response.uuid);
           if(uuidMatchJoin === -1){
-            this.playerList.push(response.uuid);
+            const filtered = this.users.filter(item => item.name === response.uuid);
+            if(this.name !== response.uuid && filtered.length === 0){
+              this.users.push({name: response.uuid, subscribed: false});
+            }
           }
         }
       }
   }
 
   leave(response){
-        var uuidMatchLeave = this.playerList.indexOf(response.uuid);
+        var uuidMatchLeave = this.users.indexOf(response.uuid);
         if(uuidMatchLeave > -1){
-          this.playerList.splice(uuidMatchLeave, 1);
+          this.users.splice(uuidMatchLeave, 1);
           // this.messages.push({text: `${response.uuid} left`, class:'list-group-item-secondary'});
         }
   }
 
   userLeave(response){
     for(let i=0; i < response.occupancy; i++){
-      var uuidMatchIntervalLeave = this.playerList.indexOf(response.leave[i]);
+      var uuidMatchIntervalLeave = this.users.indexOf(response.leave[i]);
       if(uuidMatchIntervalLeave > -1){
-        this.playerList.splice(uuidMatchIntervalLeave, 1);
+        this.users.splice(uuidMatchIntervalLeave, 1);
         // this.messages.push({text: `${response.leave[i]} left`, class:'list-group-item-secondary'});
       }
     }
@@ -162,5 +163,39 @@ export class DemoComponent implements OnInit {
 
   message(response){
     console.log('Message event');
+  }
+
+  startChat(i: number){
+    this.users[i].subscribed = true;
+    const channelName = this.createUniqueChannel(this.users[i].name, this.name);
+    this.addChanneltoGroup(channelName, (status, response) => {
+      console.log('add status ', status);
+      this.init.subscribe({channels: [channelName], withPresence: true, uuid: this.name});
+      this.addListners();
+      this.users[i].channel = channelName;
+    });
+  }
+
+  send(i){
+    this.init.publish({message:{message: this.users[i].input, user: this.users[i].name}, channel: this.users[i].channel }, () => {
+      this.users[i].input = '';
+      this.fetchHistory(i);
+    });
+  }
+
+  createUniqueChannel(name1: string, name2: string){
+    const str = name1 + name2;
+    let codedString = '';
+    for(let i = 0; i < str.length; i++){
+    codedString += str.charCodeAt(i);
+    }
+    return codedString;
+  }
+
+  fetchHistory(i: number){
+    this.init.history({channel: this.users[i].channel}, (status, response) => {
+      console.log(response);
+      this.users[i].response = response.messages;
+    })
   }
 }
