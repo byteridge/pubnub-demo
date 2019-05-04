@@ -114,7 +114,7 @@ export class DemoComponent implements OnInit {
   hereNow() {
     this.init.hereNow(
       {
-        channels: [this.channelGroup],
+        channelGroups: [this.channelGroup, `${this.channelGroup}-pnpres`],
         includeUUIDs: true,
         includeState: true
       },
