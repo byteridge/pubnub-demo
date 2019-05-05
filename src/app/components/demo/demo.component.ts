@@ -20,11 +20,14 @@ export class DemoComponent implements OnInit {
     this.getName();
     this.initialize();
     this.initGroup((status, response) => {
-      console.log('status ', status);
-      console.log('response ', response);
       this.grant();
     });
   }
+
+  // async ngOnInit(){
+  //   const deleteStatus = await this.deleteGroup();
+  //   console.log('delete status ', deleteStatus);
+  // }
 
   grant(){
     this.init.grant(
@@ -35,12 +38,8 @@ export class DemoComponent implements OnInit {
         },
         (status) => {
             // handle status
-            console.log('grant ', status);
-            // this.addChanneltoGroup((status, response) => {
-              console.log('add status ', status);
               this.subscribe();
               this.addListners();
-            // });
         }
     );
   }
@@ -82,13 +81,11 @@ export class DemoComponent implements OnInit {
   addListners(){
     this.init.addListener({
       status: (response) => {
-        console.log('presence status ', response);
         if (response.category === "PNConnectedCategory") {
           this.hereNow();
         }
       },
       presence: (response) => {
-        console.log('presence resp ', response);
         if(response.leave!==undefined){
           this.userLeave(response);
         }else{
@@ -106,7 +103,13 @@ export class DemoComponent implements OnInit {
             }
           }
         }
-        console.log("Presence UUIDs:", this.users);
+      }, 
+      message: (resp) => {
+        if(resp.channel){
+          const i = this.users.findIndex(item => item.name === resp.publisher);
+          if(i > -1)
+            this.fetchHistory(i);
+        }
       }
     });
   }
@@ -114,18 +117,22 @@ export class DemoComponent implements OnInit {
   hereNow() {
     this.init.hereNow(
       {
-        channelGroups: [this.channelGroup, `${this.channelGroup}-pnpres`],
+        channelGroups: [this.channelGroup],
         includeUUIDs: true,
         includeState: true
       },
         (status, response) => {
-        console.log("hereNow Response: ", response);
-        // if(response.channels[environment.pubnub.channels.presence].occupants){
-        //   response.channels[environment.pubnub.channels.presence].occupants.forEach((occupant) => {
-        //     this.playerList.push(occupant.uuid);
-        //   })
-        // }
-        // console.log("hereNow UUIDs: ", this.playerList);
+        const keys = Object.keys(response.channels);
+        const users = response.channels[keys[0]].occupants;
+        if(users.length > 0){
+          users.forEach(user => {
+            const filtered = this.users.filter(item => item.name === user.uuid);
+            if(this.name !== user.uuid && filtered.length === 0){
+              this.users.push({name: user.uuid, subscribed: false});
+              this.startChat(this.users.length - 1);
+            }
+          });
+        }
       });
   }
 
@@ -137,6 +144,7 @@ export class DemoComponent implements OnInit {
             const filtered = this.users.filter(item => item.name === response.uuid);
             if(this.name !== response.uuid && filtered.length === 0){
               this.users.push({name: response.uuid, subscribed: false});
+              this.startChat(this.users.length - 1);
             }
           }
         }
@@ -147,7 +155,6 @@ export class DemoComponent implements OnInit {
         var uuidMatchLeave = this.users.indexOf(response.uuid);
         if(uuidMatchLeave > -1){
           this.users.splice(uuidMatchLeave, 1);
-          // this.messages.push({text: `${response.uuid} left`, class:'list-group-item-secondary'});
         }
   }
 
@@ -156,20 +163,14 @@ export class DemoComponent implements OnInit {
       var uuidMatchIntervalLeave = this.users.indexOf(response.leave[i]);
       if(uuidMatchIntervalLeave > -1){
         this.users.splice(uuidMatchIntervalLeave, 1);
-        // this.messages.push({text: `${response.leave[i]} left`, class:'list-group-item-secondary'});
       }
     }
-  }
-
-  message(response){
-    console.log('Message event');
   }
 
   startChat(i: number){
     this.users[i].subscribed = true;
     const channelName = this.createUniqueChannel(this.users[i].name, this.name);
     this.addChanneltoGroup(channelName, (status, response) => {
-      console.log('add status ', status);
       this.init.subscribe({channels: [channelName], withPresence: true, uuid: this.name});
       this.addListners();
       this.users[i].channel = channelName;
@@ -184,7 +185,8 @@ export class DemoComponent implements OnInit {
   }
 
   createUniqueChannel(name1: string, name2: string){
-    const str = name1 + name2;
+    const arr = [name1, name2].sort();
+    const str = arr[0] + arr[1];
     let codedString = '';
     for(let i = 0; i < str.length; i++){
     codedString += str.charCodeAt(i);
@@ -194,8 +196,20 @@ export class DemoComponent implements OnInit {
 
   fetchHistory(i: number){
     this.init.history({channel: this.users[i].channel}, (status, response) => {
-      console.log(response);
       this.users[i].response = response.messages;
     })
+  }
+
+  async deleteGroup(){
+    return new Promise((resolve, reject) => {
+      this.init.channelGroups.deleteGroup(
+          { channelGroup: this.channelGroup },(status) => {
+              if (status.error) {
+                  reject(status);
+              } else {
+                  resolve(true);
+              }
+          })
+    });
   }
 }
