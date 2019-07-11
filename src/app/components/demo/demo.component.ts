@@ -17,17 +17,22 @@ export class DemoComponent implements OnInit {
   constructor(private route: ActivatedRoute) { }
 
   ngOnInit(){
-    this.getName();
+    this.getName(); // fetching name from query params to register as a new user
     this.initialize();
     this.initGroup((status, response) => {
       this.grant();
     });
   }
 
-  // async ngOnInit(){
-  //   const deleteStatus = await this.deleteGroup();
-  //   console.log('delete status ', deleteStatus);
-  // }
+  initialize(){
+    const payload = {
+      publishKey: 'pub-c-2c71b4eb-57bb-4653-8a5a-02dccc1233c2',
+      subscribeKey: 'sub-c-b184bbc2-5c1d-11e9-a6e0-8a4660381032',
+      secretKey: 'sec-c-MzlhYzY3NjgtOGVkOS00ZGYwLWIwN2ItYjk1OWE3ZDAxOTE5',
+      uuid: this.name
+    }
+    this.init = new pubnub(payload);
+  }
 
   grant(){
     this.init.grant(
@@ -60,24 +65,18 @@ export class DemoComponent implements OnInit {
     this.init.subscribe(payload);
   }
 
+  // creates a group if not exists
   initGroup(callback){
-    this.init.channelGroups.listChannels({channelGroup: "users-list"}, callback);
+    this.init.channelGroups.listChannels({channelGroup: this.channelGroup}, callback);
   }
 
+  // fetches user name from query params and register as new user
   getName(){
     this.name = this.route.snapshot.queryParams['name'];
   }
 
-  initialize(){
-    const payload = {
-      publishKey: 'pub-c-2c71b4eb-57bb-4653-8a5a-02dccc1233c2',
-      subscribeKey: 'sub-c-b184bbc2-5c1d-11e9-a6e0-8a4660381032',
-      secretKey: 'sec-c-MzlhYzY3NjgtOGVkOS00ZGYwLWIwN2ItYjk1OWE3ZDAxOTE5',
-      uuid: this.name
-    }
-    this.init = new pubnub(payload);
-  }
-
+  
+  // adds event listners after init
   addListners(){
     this.init.addListener({
       status: (response) => {
@@ -86,10 +85,10 @@ export class DemoComponent implements OnInit {
         }
       },
       presence: (response) => {
-        if(response.leave!==undefined){
+        if(response.leave!==undefined) {
           this.userLeave(response);
         }else{
-          switch(response.action){
+          switch(response.action) {
             case 'join': {
               this.join(response);
               break;
@@ -103,17 +102,19 @@ export class DemoComponent implements OnInit {
             }
           }
         }
-      }, 
+      },
       message: (resp) => {
-        if(resp.channel){
+        if(resp.channel) {
           const i = this.users.findIndex(item => item.name === resp.publisher);
-          if(i > -1)
+          if (i > -1) {
             this.fetchHistory(i);
+          }
         }
       }
     });
   }
-  
+
+  // adds existing users to widow on inital connect
   hereNow() {
     this.init.hereNow(
       {
@@ -124,10 +125,10 @@ export class DemoComponent implements OnInit {
         (status, response) => {
         const keys = Object.keys(response.channels);
         const users = response.channels[keys[0]].occupants;
-        if(users.length > 0){
+        if (users.length > 0) {
           users.forEach(user => {
             const filtered = this.users.filter(item => item.name === user.uuid);
-            if(this.name !== user.uuid && filtered.length === 0){
+            if (this.name !== user.uuid && filtered.length === 0) {
               this.users.push({name: user.uuid, subscribed: false});
               this.startChat(this.users.length - 1);
             }
@@ -136,13 +137,13 @@ export class DemoComponent implements OnInit {
       });
   }
 
-  join(response){
-      for(let i=0; i < response.occupancy; i++){
-        if(response.uuid !== undefined){
-          var uuidMatchJoin = this.users.indexOf(response.uuid);
-          if(uuidMatchJoin === -1){
+  join(response) {
+      for (let i = 0; i < response.occupancy; i++) {
+        if (response.uuid !== undefined) {
+          const uuidMatchJoin = this.users.indexOf(response.uuid);
+          if (uuidMatchJoin === -1) {
             const filtered = this.users.filter(item => item.name === response.uuid);
-            if(this.name !== response.uuid && filtered.length === 0){
+            if (this.name !== response.uuid && filtered.length === 0) {
               this.users.push({name: response.uuid, subscribed: false});
               this.startChat(this.users.length - 1);
             }
@@ -151,23 +152,24 @@ export class DemoComponent implements OnInit {
       }
   }
 
-  leave(response){
-        var uuidMatchLeave = this.users.indexOf(response.uuid);
-        if(uuidMatchLeave > -1){
+  leave(response) {
+        const uuidMatchLeave = this.users.indexOf(response.uuid);
+        if (uuidMatchLeave > -1) {
           this.users.splice(uuidMatchLeave, 1);
         }
   }
 
-  userLeave(response){
-    for(let i=0; i < response.occupancy; i++){
-      var uuidMatchIntervalLeave = this.users.indexOf(response.leave[i]);
-      if(uuidMatchIntervalLeave > -1){
+  userLeave(response) {
+    for (let i = 0; i < response.occupancy; i++) {
+      const uuidMatchIntervalLeave = this.users.indexOf(response.leave[i]);
+      if (uuidMatchIntervalLeave > -1) {
         this.users.splice(uuidMatchIntervalLeave, 1);
       }
     }
   }
 
-  startChat(i: number){
+  // enables a chat window on user join or opening new window
+  startChat(i: number) {
     this.users[i].subscribed = true;
     const channelName = this.createUniqueChannel(this.users[i].name, this.name);
     this.addChanneltoGroup(channelName, (status, response) => {
@@ -177,39 +179,31 @@ export class DemoComponent implements OnInit {
     });
   }
 
-  send(i){
-    this.init.publish({message:{message: this.users[i].input, user: this.users[i].name}, channel: this.users[i].channel }, () => {
+  // sends message
+  send(i) {
+    this.init.publish({message: {message: this.users[i].input, user: this.users[i].name}, channel: this.users[i].channel }, () => {
       this.users[i].input = '';
       this.fetchHistory(i);
     });
   }
 
-  createUniqueChannel(name1: string, name2: string){
+  // creates a unique channel name using two users to enable chat
+  createUniqueChannel(name1: string, name2: string) {
     const arr = [name1, name2].sort();
     const str = arr[0] + arr[1];
     let codedString = '';
-    for(let i = 0; i < str.length; i++){
-    codedString += str.charCodeAt(i);
+    for (let i = 0; i < str.length; i++) {
+      codedString += str.charCodeAt(i);
     }
+    console.log(codedString);
     return codedString;
   }
 
-  fetchHistory(i: number){
+  // fetching history on updates
+  fetchHistory(i: number) {
     this.init.history({channel: this.users[i].channel}, (status, response) => {
+      response.messages.reverse();
       this.users[i].response = response.messages;
-    })
-  }
-
-  async deleteGroup(){
-    return new Promise((resolve, reject) => {
-      this.init.channelGroups.deleteGroup(
-          { channelGroup: this.channelGroup },(status) => {
-              if (status.error) {
-                  reject(status);
-              } else {
-                  resolve(true);
-              }
-          })
     });
   }
 }
